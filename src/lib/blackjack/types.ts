@@ -18,7 +18,13 @@ export interface TableRules {
   das: boolean; // Double After Split allowed
   surrender: 'late' | 'none';
   doubleRestrictions: 'any' | '9-11' | '10-11';
-  enhc: boolean; // European No Hole Card (default false = American peek)
+  enhc: boolean; // European No Hole Card
+}
+
+export interface ActionEV {
+  action: Action;
+  ev: number; // e.g. +0.42, -0.50
+  label: string;
 }
 
 export interface ExplanationDetails {
@@ -27,6 +33,8 @@ export interface ExplanationDetails {
   ruleExplanation: string;
   mathematicalReason: string;
   dealerBustProbability: string;
+  evBreakdown?: ActionEV[];
+  evLossEstimated?: number; // e.g. -0.040 bets lost by wrong choice
   alternativeMoveTip?: string;
   cardCountingContext?: string;
 }
@@ -61,12 +69,27 @@ export type TrainingMode =
   | 'deviations'
   | 'review';
 
+export interface HandRecord {
+  situationId: string;
+  playerDisplay: string;
+  dealerDisplay: string;
+  userAction: Action;
+  correctAction: Action;
+  isCorrect: boolean;
+  responseTimeMs: number;
+  evLoss: number;
+  timestamp: number;
+}
+
 export interface UserStats {
   totalDecisions: number;
   correctDecisions: number;
   currentStreak: number;
   bestStreak: number;
   targetGoal: number; // e.g. 5000
+  totalResponseTimeMs: number; // para calcular velocidade média
+  totalEvLoss: number; // em unidades de aposta (ex.: -3.42)
+  betUnit: number; // valor padrão da unidade (ex.: R$ 25 ou $ 25)
   categoryStats: {
     hard: { total: number; correct: number };
     soft: { total: number; correct: number };
@@ -74,13 +97,7 @@ export interface UserStats {
     surrender: { total: number; correct: number };
     deviation: { total: number; correct: number };
   };
-  mistakeHistory: Array<{
-    situationId: string;
-    playerDisplay: string;
-    dealerDisplay: string;
-    userAction: Action;
-    correctAction: Action;
-    timestamp: number;
-  }>;
+  mistakeHistory: HandRecord[];
+  recentHistory: HandRecord[];
   reviewQueue: string[]; // Situation IDs that need repeating
 }

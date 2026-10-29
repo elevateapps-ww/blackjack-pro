@@ -18,7 +18,10 @@ export const DEFAULT_STATS: UserStats = {
   correctDecisions: 0,
   currentStreak: 0,
   bestStreak: 0,
-  targetGoal: 5000, // Meta inicial padrão solicitada pelo usuário (5.000 mãos)
+  targetGoal: 5000,
+  totalResponseTimeMs: 0,
+  totalEvLoss: 0,
+  betUnit: 25, // R$ 25 por unidade
   categoryStats: {
     hard: { total: 0, correct: 0 },
     soft: { total: 0, correct: 0 },
@@ -27,6 +30,7 @@ export const DEFAULT_STATS: UserStats = {
     deviation: { total: 0, correct: 0 },
   },
   mistakeHistory: [],
+  recentHistory: [],
   reviewQueue: [],
 };
 
@@ -34,6 +38,8 @@ export interface AppSettings {
   soundEnabled: boolean;
   autoAdvanceOnCorrect: boolean;
   showKeyboardHints: boolean;
+  speedTimerEnabled: boolean;
+  showEvImpact: boolean;
   selectedMode: TrainingMode;
 }
 
@@ -41,6 +47,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
   autoAdvanceOnCorrect: true,
   showKeyboardHints: true,
+  speedTimerEnabled: true,
+  showEvImpact: true,
   selectedMode: 'all',
 };
 
@@ -109,6 +117,7 @@ export function resetAllStats(): UserStats {
   const resetStats: UserStats = {
     ...DEFAULT_STATS,
     mistakeHistory: [],
+    recentHistory: [],
     reviewQueue: [],
   };
   saveUserStats(resetStats);

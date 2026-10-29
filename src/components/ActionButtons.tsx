@@ -16,12 +16,25 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
   const isActionAllowed = (action: Action) => allowedActions.includes(action);
 
+  const handleClick = (action: Action) => {
+    if (disabled || !isActionAllowed(action)) return;
+    // Feedback tátil em dispositivos móveis
+    if (typeof window !== 'undefined' && 'navigator' in window && navigator.vibrate) {
+      try {
+        navigator.vibrate(20);
+      } catch {
+        // Ignore
+      }
+    }
+    onAction(action);
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto px-2">
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
         {/* HIT (Pedir Carta) */}
         <button
-          onClick={() => onAction('H')}
+          onClick={() => handleClick('H')}
           disabled={disabled || !isActionAllowed('H')}
           className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
             disabled || !isActionAllowed('H')
@@ -33,13 +46,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Pedir</span>
           </div>
           <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
-            [H] ou [P]
+            [H]
           </span>
         </button>
 
         {/* STAND (Parar) */}
         <button
-          onClick={() => onAction('S')}
+          onClick={() => handleClick('S')}
           disabled={disabled || !isActionAllowed('S')}
           className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
             disabled || !isActionAllowed('S')
@@ -57,7 +70,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
         {/* DOUBLE (Dobrar) */}
         <button
-          onClick={() => onAction('D')}
+          onClick={() => handleClick('D')}
           disabled={disabled || !isActionAllowed('D')}
           className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
             disabled || !isActionAllowed('D')
@@ -75,7 +88,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
         {/* SPLIT (Dividir) */}
         <button
-          onClick={() => onAction('P')}
+          onClick={() => handleClick('P')}
           disabled={disabled || !isActionAllowed('P')}
           className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
             disabled || !isActionAllowed('P')
@@ -87,13 +100,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
             <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Dividir</span>
           </div>
           <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
-            [Y] ou [V]
+            [P] ou [Y]
           </span>
         </button>
 
         {/* SURRENDER (Render-se) */}
         <button
-          onClick={() => onAction('R')}
+          onClick={() => handleClick('R')}
           disabled={disabled || !isActionAllowed('R')}
           className={`col-span-2 sm:col-span-1 relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
             disabled || !isActionAllowed('R')

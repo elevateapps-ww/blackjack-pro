@@ -37,7 +37,34 @@ class SoundEffectsEngine {
       osc.start();
       osc.stop(this.ctx.currentTime + 0.08);
     } catch {
-      // Ignore audio errors silently
+      // Ignore
+    }
+  }
+
+  // Som realista de fichas de cassino colidindo
+  public playChipClink() {
+    if (!this.enabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      // Dois pulsos de alta frequência simulam cerâmica de ficha de cassino
+      [2400, 3100].forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.02);
+        gain.gain.setValueAtTime(0.06, now + idx * 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.02 + 0.04);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.02);
+        osc.stop(now + idx * 0.02 + 0.04);
+      });
+    } catch {
+      // Ignore
     }
   }
 

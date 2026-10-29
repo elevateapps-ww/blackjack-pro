@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Action, HandSituation, TableRules, TrainingMode, UserStats } from '@/lib/blackjack/types';
+import { Action, HandSituation, TableRules, TrainingMode, UserStats, HandRecord } from '@/lib/blackjack/types';
 import {
   loadUserStats,
   saveUserStats,
@@ -16,6 +16,7 @@ import {
   DEFAULT_SETTINGS,
 } from '@/lib/storage';
 import { generateHandSituation } from '@/lib/blackjack/handGenerator';
+import { calculateEvLoss } from '@/lib/blackjack/strategyMatrix';
 import { sounds } from '@/lib/audio/soundEffects';
 import { fireMilestoneConfetti } from '@/lib/confetti';
 import { HeaderHUD } from '@/components/HeaderHUD';
@@ -25,7 +26,7 @@ import { ExplanationModal } from '@/components/ExplanationModal';
 import { StrategyChartModal } from '@/components/StrategyChartModal';
 import { SettingsModal } from '@/components/SettingsModal';
 import { StatsModal } from '@/components/StatsModal';
-import { Keyboard, Flame, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Keyboard, Flame, Sparkles } from 'lucide-react';
 
 export default function BlackjackTrainerPage() {
   const [mounted, setMounted] = useState(false);
@@ -37,13 +38,15 @@ export default function BlackjackTrainerPage() {
   const [feedbackFlash, setFeedbackFlash] = useState<'correct' | 'incorrect' | null>(null);
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
   const [lastUserAction, setLastUserAction] = useState<Action | null>(null);
+  const [lastReactionTimeMs, setLastReactionTimeMs] = useState<number | undefined>(undefined);
 
   // Modais auxiliares
   const [isChartOpen, setIsChartOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
 
-  // Trava para evitar cliques duplos rápidos
+  // Timer de reação para medir velocidade de decisão
+  const handStartTimeRef = useRef<number>(Date.now());
   const isProcessingAction = useRef(false);
 
   // 1. Carregar preferências do LocalStorage no mount
@@ -63,6 +66,7 @@ export default function BlackjackTrainerPage() {
       loadedStats.reviewQueue
     );
     setCurrentSituation(initialSit);
+    handStartTimeRef.current = Date.now();
     setMounted(true);
     sounds.playCardDeal();
   }, []);
@@ -80,6 +84,7 @@ export default function BlackjackTrainerPage() {
       setLastUserAction(null);
       setFeedbackFlash(null);
       isProcessingAction.current = false;
+      handStartTimeRef.current = Date.now();
       sounds.playCardDeal();
     },
     [rules, settings.selectedMode, stats.reviewQueue]
@@ -92,10 +97,20 @@ export default function BlackjackTrainerPage() {
       if (!currentSituation.allowedActions.includes(action)) return;
 
       isProcessingAction.current = true;
+      sounds.playChipClink();
+
+      const reactionTime = Math.max(150, Date.now() - handStartTimeRef.current);
+      setLastReactionTimeMs(reactionTime);
       setLastUserAction(action);
 
       const isCorrect = action === currentSituation.optimalAction;
       const category = currentSituation.category;
+
+      const playerDisp = currentSituation.isPair
+        ? `Par ${currentSituation.playerCards[0].rank}s`
+        : currentSituation.isSoft
+        ? `A,${currentSituation.playerTotal - 11}`
+        : `${currentSituation.playerTotal}`;
 
       if (isCorrect) {
         // --- ACERTOU ---
@@ -106,6 +121,7 @@ export default function BlackjackTrainerPage() {
         const newCorrect = stats.correctDecisions + 1;
         const newStreak = stats.currentStreak + 1;
         const newBestStreak = Math.max(stats.bestStreak, newStreak);
+        const newTotalResponseTime = stats.totalResponseTimeMs + reactionTime;
 
         // Se a mão estava na fila de revisão, removemos porque o usuário já dominou!
         const updatedReviewQueue = stats.reviewQueue.filter(
@@ -121,14 +137,28 @@ export default function BlackjackTrainerPage() {
           };
         }
 
+        const historyRecord: HandRecord = {
+          situationId: currentSituation.id,
+          playerDisplay: playerDisp,
+          dealerDisplay: currentSituation.dealerCard.rank,
+          userAction: action,
+          correctAction: currentSituation.optimalAction,
+          isCorrect: true,
+          responseTimeMs: reactionTime,
+          evLoss: 0,
+          timestamp: Date.now(),
+        };
+
         const newStats: UserStats = {
           ...stats,
           totalDecisions: newTotal,
           correctDecisions: newCorrect,
           currentStreak: newStreak,
           bestStreak: newBestStreak,
+          totalResponseTimeMs: newTotalResponseTime,
           categoryStats: updatedCategoryStats,
           reviewQueue: updatedReviewQueue,
+          recentHistory: [historyRecord, ...(stats.recentHistory || [])].slice(0, 30),
         };
 
         setStats(newStats);
@@ -155,21 +185,33 @@ export default function BlackjackTrainerPage() {
 
         const newTotal = stats.totalDecisions + 1;
         const newStreak = 0; // zera a sequência de acertos
+        const newTotalResponseTime = stats.totalResponseTimeMs + reactionTime;
+
+        // Calcular EV perdido
+        const evLoss = calculateEvLoss(
+          currentSituation.optimalAction,
+          action,
+          currentSituation.playerTotal,
+          currentSituation.dealerCard.rank,
+          currentSituation.isSoft,
+          currentSituation.isPair
+        );
+        const newTotalEvLoss = stats.totalEvLoss + evLoss;
 
         // Adiciona à fila de revisão prioritária para fixação ("O que eu errar, coloca de novo")
         const updatedReviewQueue = stats.reviewQueue.includes(currentSituation.id)
           ? stats.reviewQueue
           : [...stats.reviewQueue, currentSituation.id];
 
-        // Registro no histórico de erros
-        const mistakeEntry = {
+        const mistakeEntry: HandRecord = {
           situationId: currentSituation.id,
-          playerDisplay: currentSituation.isPair
-            ? `Par ${currentSituation.playerCards[0].rank}s`
-            : `${currentSituation.playerTotal}`,
+          playerDisplay: playerDisp,
           dealerDisplay: currentSituation.dealerCard.rank,
           userAction: action,
           correctAction: currentSituation.optimalAction,
+          isCorrect: false,
+          responseTimeMs: reactionTime,
+          evLoss,
           timestamp: Date.now(),
         };
 
@@ -185,8 +227,11 @@ export default function BlackjackTrainerPage() {
           ...stats,
           totalDecisions: newTotal,
           currentStreak: newStreak,
+          totalResponseTimeMs: newTotalResponseTime,
+          totalEvLoss: newTotalEvLoss,
           categoryStats: updatedCategoryStats,
-          mistakeHistory: [mistakeEntry, ...stats.mistakeHistory].slice(0, 100),
+          mistakeHistory: [mistakeEntry, ...(stats.mistakeHistory || [])].slice(0, 100),
+          recentHistory: [mistakeEntry, ...(stats.recentHistory || [])].slice(0, 30),
           reviewQueue: updatedReviewQueue,
         };
 
@@ -339,6 +384,8 @@ export default function BlackjackTrainerPage() {
           situation={currentSituation}
           rules={rules}
           feedbackFlash={feedbackFlash}
+          reactionTimeMs={lastReactionTimeMs}
+          showSpeedTimer={settings.speedTimerEnabled}
         />
 
         {/* BOTÕES DE AÇÃO E ATALHOS */}
@@ -358,7 +405,7 @@ export default function BlackjackTrainerPage() {
             <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">H</kbd> Pedir</span>
             <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">S</kbd> Parar</span>
             <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">D</kbd> Dobrar</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">Y / P</kbd> Dividir</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">P / Y</kbd> Dividir</span>
             <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">R</kbd> Render-se</span>
             <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">C</kbd> Tabela</span>
           </div>
@@ -385,6 +432,7 @@ export default function BlackjackTrainerPage() {
           situation={currentSituation}
           userAction={lastUserAction}
           onNext={() => nextHand()}
+          betUnit={stats.betUnit}
         />
       )}
 
@@ -420,6 +468,11 @@ export default function BlackjackTrainerPage() {
         onClose={() => setIsStatsOpen(false)}
         stats={stats}
         onStartReviewMode={handleStartReviewMode}
+        onUpdateBetUnit={(unit) => {
+          const upd = { ...stats, betUnit: unit };
+          setStats(upd);
+          saveUserStats(upd);
+        }}
       />
 
     </div>

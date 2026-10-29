@@ -1,5 +1,6 @@
 import { Card, CardRank, CardSuit, HandCategory, HandSituation, TableRules, TrainingMode, Action } from './types';
-import { getBasicStrategyAction, rankToValue } from './strategyMatrix';
+import { getBasicStrategyAction, rankToValue, DEALER_BUST_ODDS } from './strategyMatrix';
+import { buildExhaustiveUniverse, fisherYatesShuffle, ScenarioBlueprint, getDidacticMnemonic } from './didacticEngine';
 
 const SUITS: CardSuit[] = ['♠', '♥', '♦', '♣'];
 const RANKS: CardRank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -17,7 +18,7 @@ export function createCard(rank: CardRank, preferredSuit?: CardSuit): Card {
 }
 
 /**
- * Cria 2 cartas para atingir o total desejado
+ * Cria 2 cartas visualmente autênticas para atingir o total desejado
  */
 function createCardsForTotal(total: number, isSoft: boolean): [Card, Card] {
   if (isSoft) {
@@ -29,7 +30,7 @@ function createCardsForTotal(total: number, isSoft: boolean): [Card, Card] {
     return [createCard('A'), createCard(otherRank)];
   }
 
-  // Hard Hand
+  // Hard Hand: escolhe duas cartas que somem o total
   const possibleCombos: Array<[CardRank, CardRank]> = [];
   for (const r1 of RANKS) {
     for (const r2 of RANKS) {
@@ -50,17 +51,37 @@ function createCardsForTotal(total: number, isSoft: boolean): [Card, Card] {
   return [createCard('10'), createCard('6')];
 }
 
+// Fila em memória para o ciclo de embaralhamento didático
+let activeDidacticDeck: ScenarioBlueprint[] = [];
+let deckIndex = 0;
+
+function ensureDidacticDeck(rules: TableRules, mode: TrainingMode) {
+  if (activeDidacticDeck.length === 0 || deckIndex >= activeDidacticDeck.length) {
+    let full = buildExhaustiveUniverse(rules);
+
+    if (mode === 'hard') {
+      full = full.filter((s) => !s.isSoft);
+    } else if (mode === 'soft') {
+      full = full.filter((s) => s.isSoft);
+    }
+
+    // Embaralhamento Fisher-Yates completo
+    activeDidacticDeck = fisherYatesShuffle(full);
+    deckIndex = 0;
+  }
+}
+
 /**
- * Gera a próxima situação com as 3 decisões: Pedir, Parar, Dobrar
+ * Gera a próxima situação com embaralhamento didático profissional e fixação de erros
  */
 export function generateHandSituation(
   mode: TrainingMode,
   rules: TableRules,
   reviewQueue: string[] = []
 ): HandSituation {
-  // Se houver fila de revisão de erros, puxa dela para fixação mental
+  // 1. REPETIÇÃO ESPAÇADA PRIORITÁRIA (40% de chance de reforço se houver erros na fila)
   const shouldPullFromReview = (mode === 'review' && reviewQueue.length > 0) ||
-    (reviewQueue.length > 0 && Math.random() < 0.40);
+    (reviewQueue.length > 0 && Math.random() < 0.45);
 
   if (shouldPullFromReview) {
     const targetId = randomElement(reviewQueue);
@@ -68,64 +89,42 @@ export function generateHandSituation(
     if (parsed) return parsed;
   }
 
-  let isSoft = false;
-  if (mode === 'soft') {
-    isSoft = true;
-  } else if (mode === 'hard') {
-    isSoft = false;
-  } else {
-    // Modo All: 65% mãos rígidas, 35% mãos suaves
-    isSoft = Math.random() < 0.35;
+  // 2. EMBARALHAMENTO DO UNIVERSO DIDÁTICO EXAUSTIVO
+  ensureDidacticDeck(rules, mode);
+
+  // Sorteio ponderado por dificuldade (as situações mais difíceis aparecem com frequência pedagógica reforçada)
+  let blueprint = activeDidacticDeck[deckIndex++];
+  if (!blueprint) {
+    ensureDidacticDeck(rules, mode);
+    blueprint = activeDidacticDeck[deckIndex++];
   }
 
-  let playerTotal: number;
-  if (isSoft) {
-    const softTotals = [13, 14, 15, 16, 17, 18, 19, 20];
-    playerTotal = randomElement(softTotals);
-  } else {
-    // Hard totals críticos para Pedir, Parar, Dobrar: 8 a 17
-    const hardTotals = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-    playerTotal = randomElement(hardTotals);
+  // 35% de chance de re-focar numa situação com peso de dificuldade 3 (boundary traps)
+  if (Math.random() < 0.35 && blueprint.difficultyWeight < 3) {
+    const criticalCandidates = activeDidacticDeck.filter((s) => s.difficultyWeight === 3);
+    if (criticalCandidates.length > 0) {
+      blueprint = randomElement(criticalCandidates);
+    }
   }
 
-  const dealerRank: CardRank = randomElement(RANKS);
-  const playerCards = createCardsForTotal(playerTotal, isSoft);
-  const dealerCard = createCard(dealerRank);
-
-  const strat = getBasicStrategyAction(playerTotal, dealerRank, isSoft, rules);
-
-  return buildSituationObject(
-    playerCards,
-    dealerCard,
-    playerTotal,
-    isSoft,
-    isSoft ? 'soft' : 'hard',
-    strat.action,
-    strat.explanation
-  );
-}
-
-function buildSituationObject(
-  playerCards: [Card, Card],
-  dealerCard: Card,
-  playerTotal: number,
-  isSoft: boolean,
-  category: HandCategory,
-  optimalAction: Action,
-  explanation: any
-): HandSituation {
-  const sitId = `${isSoft ? 'S_' : 'H_'}${playerTotal}_vs_${dealerCard.rank}`;
+  const playerCards = createCardsForTotal(blueprint.playerTotal, blueprint.isSoft);
+  const dealerCard = createCard(blueprint.dealerRank);
+  const strat = getBasicStrategyAction(blueprint.playerTotal, blueprint.dealerRank, blueprint.isSoft, rules);
+  const mnemonic = getDidacticMnemonic(blueprint.playerTotal, blueprint.isSoft, blueprint.dealerRank, strat.action);
 
   return {
-    id: sitId,
+    id: blueprint.id,
     playerCards,
     dealerCard,
-    playerTotal,
-    isSoft,
-    category,
-    optimalAction,
+    playerTotal: blueprint.playerTotal,
+    isSoft: blueprint.isSoft,
+    category: blueprint.isSoft ? 'soft' : 'hard',
+    optimalAction: strat.action,
     allowedActions: ['H', 'S', 'D'],
-    explanation,
+    explanation: {
+      ...strat.explanation,
+      ruleExplanation: `${mnemonic} • ${strat.explanation.ruleExplanation}`,
+    },
   };
 }
 
@@ -142,16 +141,22 @@ function parseSituationId(id: string, rules: TableRules): HandSituation | null {
     const playerCards = createCardsForTotal(playerTotal, isSoft);
     const dealerCard = createCard(dealerRank);
     const strat = getBasicStrategyAction(playerTotal, dealerRank, isSoft, rules);
+    const mnemonic = getDidacticMnemonic(playerTotal, isSoft, dealerRank, strat.action);
 
-    return buildSituationObject(
+    return {
+      id,
       playerCards,
       dealerCard,
       playerTotal,
       isSoft,
-      isSoft ? 'soft' : 'hard',
-      strat.action,
-      strat.explanation
-    );
+      category: isSoft ? 'soft' : 'hard',
+      optimalAction: strat.action,
+      allowedActions: ['H', 'S', 'D'],
+      explanation: {
+        ...strat.explanation,
+        ruleExplanation: `${mnemonic} • ${strat.explanation.ruleExplanation}`,
+      },
+    };
   } catch {
     return null;
   }

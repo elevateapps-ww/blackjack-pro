@@ -7,23 +7,21 @@ export interface Card {
   value: number; // 2..10, A is 11
 }
 
-export type Action = 'H' | 'S' | 'D' | 'P' | 'R';
-// H: Hit, S: Stand, D: Double, P: Split, R: Surrender
+// Apenas Pedir, Parar, Dobrar (conforme solicitado pelo usuário)
+export type Action = 'H' | 'S' | 'D';
+// H: Pedir (Hit), S: Parar (Stand), D: Dobrar (Double)
 
-export type HandCategory = 'hard' | 'soft' | 'pair' | 'surrender' | 'deviation';
+export type HandCategory = 'hard' | 'soft';
 
 export interface TableRules {
   decks: 1 | 2 | 4 | 6 | 8;
   dealerRule: 'S17' | 'H17'; // S17: Dealer stands on soft 17, H17: Dealer hits soft 17
-  das: boolean; // Double After Split allowed
-  surrender: 'late' | 'none';
   doubleRestrictions: 'any' | '9-11' | '10-11';
-  enhc: boolean; // European No Hole Card
 }
 
 export interface ActionEV {
   action: Action;
-  ev: number; // e.g. +0.42, -0.50
+  ev: number;
   label: string;
 }
 
@@ -34,9 +32,6 @@ export interface ExplanationDetails {
   mathematicalReason: string;
   dealerBustProbability: string;
   evBreakdown?: ActionEV[];
-  evLossEstimated?: number; // e.g. -0.040 bets lost by wrong choice
-  alternativeMoveTip?: string;
-  cardCountingContext?: string;
 }
 
 export interface HandSituation {
@@ -45,28 +40,16 @@ export interface HandSituation {
   dealerCard: Card;
   playerTotal: number;
   isSoft: boolean;
-  isPair: boolean;
   category: HandCategory;
   optimalAction: Action;
   allowedActions: Action[];
   explanation: ExplanationDetails;
-  
-  // Deviation specific
-  isDeviation?: boolean;
-  trueCount?: number;
-  runningCount?: number;
-  deviationIndex?: number;
-  basicStrategyAction?: Action;
-  deviationName?: string;
 }
 
 export type TrainingMode = 
   | 'all'
   | 'hard'
   | 'soft'
-  | 'pairs'
-  | 'surrender'
-  | 'deviations'
   | 'review';
 
 export interface HandRecord {
@@ -77,7 +60,6 @@ export interface HandRecord {
   correctAction: Action;
   isCorrect: boolean;
   responseTimeMs: number;
-  evLoss: number;
   timestamp: number;
 }
 
@@ -87,15 +69,10 @@ export interface UserStats {
   currentStreak: number;
   bestStreak: number;
   targetGoal: number; // e.g. 5000
-  totalResponseTimeMs: number; // para calcular velocidade média
-  totalEvLoss: number; // em unidades de aposta (ex.: -3.42)
-  betUnit: number; // valor padrão da unidade (ex.: R$ 25 ou $ 25)
+  totalResponseTimeMs: number;
   categoryStats: {
     hard: { total: number; correct: number };
     soft: { total: number; correct: number };
-    pair: { total: number; correct: number };
-    surrender: { total: number; correct: number };
-    deviation: { total: number; correct: number };
   };
   mistakeHistory: HandRecord[];
   recentHistory: HandRecord[];

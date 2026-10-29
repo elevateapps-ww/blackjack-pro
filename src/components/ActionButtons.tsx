@@ -14,14 +14,11 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   allowedActions,
   disabled = false,
 }) => {
-  const isActionAllowed = (action: Action) => allowedActions.includes(action);
-
   const handleClick = (action: Action) => {
-    if (disabled || !isActionAllowed(action)) return;
-    // Feedback tátil em dispositivos móveis
+    if (disabled) return;
     if (typeof window !== 'undefined' && 'navigator' in window && navigator.vibrate) {
       try {
-        navigator.vibrate(20);
+        navigator.vibrate(15);
       } catch {
         // Ignore
       }
@@ -30,97 +27,63 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-2">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3">
-        {/* HIT (Pedir Carta) */}
+    <div className="w-full max-w-xl mx-auto px-2">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        
+        {/* PEDIR (HIT) */}
         <button
           onClick={() => handleClick('H')}
-          disabled={disabled || !isActionAllowed('H')}
-          className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
-            disabled || !isActionAllowed('H')
-              ? 'bg-slate-800/40 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white border-blue-400/50 shadow-blue-900/40 hover:shadow-blue-600/30 ring-1 ring-white/20'
+          disabled={disabled}
+          className={`group py-4 px-3 rounded-2xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-sm ${
+            disabled
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+              : 'bg-white hover:bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-300 hover:shadow-md'
           }`}
         >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Pedir</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
+          <span className="text-base sm:text-lg uppercase tracking-wide font-extrabold text-blue-700">
+            Pedir
+          </span>
+          <span className="text-xs font-mono text-blue-500/80 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/60 mt-1">
             [H]
           </span>
         </button>
 
-        {/* STAND (Parar) */}
+        {/* PARAR (STAND) */}
         <button
           onClick={() => handleClick('S')}
-          disabled={disabled || !isActionAllowed('S')}
-          className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
-            disabled || !isActionAllowed('S')
-              ? 'bg-slate-800/40 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-b from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white border-emerald-400/50 shadow-emerald-900/40 hover:shadow-emerald-600/30 ring-1 ring-white/20'
+          disabled={disabled}
+          className={`group py-4 px-3 rounded-2xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-sm ${
+            disabled
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+              : 'bg-white hover:bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-300 hover:shadow-md'
           }`}
         >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Parar</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
+          <span className="text-base sm:text-lg uppercase tracking-wide font-extrabold text-emerald-700">
+            Parar
+          </span>
+          <span className="text-xs font-mono text-emerald-600/80 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 mt-1">
             [S]
           </span>
         </button>
 
-        {/* DOUBLE (Dobrar) */}
+        {/* DOBRAR (DOUBLE) */}
         <button
           onClick={() => handleClick('D')}
-          disabled={disabled || !isActionAllowed('D')}
-          className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
-            disabled || !isActionAllowed('D')
-              ? 'bg-slate-800/40 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-b from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-amber-400/50 shadow-amber-900/40 hover:shadow-amber-600/30 ring-1 ring-white/20'
+          disabled={disabled}
+          className={`group py-4 px-3 rounded-2xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-sm ${
+            disabled
+              ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+              : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-300 hover:shadow-md'
           }`}
         >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Dobrar</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
+          <span className="text-base sm:text-lg uppercase tracking-wide font-extrabold text-amber-700">
+            Dobrar
+          </span>
+          <span className="text-xs font-mono text-amber-600/80 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/60 mt-1">
             [D]
           </span>
         </button>
 
-        {/* SPLIT (Dividir) */}
-        <button
-          onClick={() => handleClick('P')}
-          disabled={disabled || !isActionAllowed('P')}
-          className={`relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
-            disabled || !isActionAllowed('P')
-              ? 'bg-slate-800/40 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-40'
-              : 'bg-gradient-to-b from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white border-purple-400/50 shadow-purple-900/40 hover:shadow-purple-600/30 ring-1 ring-white/20'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Dividir</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
-            [P] ou [Y]
-          </span>
-        </button>
-
-        {/* SURRENDER (Render-se) */}
-        <button
-          onClick={() => handleClick('R')}
-          disabled={disabled || !isActionAllowed('R')}
-          className={`col-span-2 sm:col-span-1 relative group overflow-hidden py-3 sm:py-4 px-3 rounded-xl font-bold transition-all duration-150 active:scale-95 flex flex-col items-center justify-center border shadow-lg ${
-            disabled || !isActionAllowed('R')
-              ? 'bg-slate-800/40 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-40'
-              : 'bg-gradient-to-b from-rose-700 to-rose-800 hover:from-rose-600 hover:to-rose-700 text-white border-rose-400/50 shadow-rose-900/40 hover:shadow-rose-600/30 ring-1 ring-white/20'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base tracking-wide uppercase font-extrabold">Render-se</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80 bg-black/30 px-2 py-0.5 rounded-full border border-white/10">
-            [R]
-          </span>
-        </button>
       </div>
     </div>
   );

@@ -1,16 +1,13 @@
 import { TableRules, TrainingMode, UserStats } from './blackjack/types';
 
-const STATS_KEY = 'bj_apex_pro_stats_v1';
-const RULES_KEY = 'bj_apex_pro_rules_v1';
-const SETTINGS_KEY = 'bj_apex_pro_settings_v1';
+const STATS_KEY = 'bj_apex_pro_stats_clean_v1';
+const RULES_KEY = 'bj_apex_pro_rules_clean_v1';
+const SETTINGS_KEY = 'bj_apex_pro_settings_clean_v1';
 
 export const DEFAULT_RULES: TableRules = {
   decks: 6,
-  dealerRule: 'S17', // S17 é padrão profissional Las Vegas strip
-  das: true,         // Double After Split permitido
-  surrender: 'late', // Late surrender permitido
+  dealerRule: 'S17',
   doubleRestrictions: 'any',
-  enhc: false,
 };
 
 export const DEFAULT_STATS: UserStats = {
@@ -20,14 +17,9 @@ export const DEFAULT_STATS: UserStats = {
   bestStreak: 0,
   targetGoal: 5000,
   totalResponseTimeMs: 0,
-  totalEvLoss: 0,
-  betUnit: 25, // R$ 25 por unidade
   categoryStats: {
     hard: { total: 0, correct: 0 },
     soft: { total: 0, correct: 0 },
-    pair: { total: 0, correct: 0 },
-    surrender: { total: 0, correct: 0 },
-    deviation: { total: 0, correct: 0 },
   },
   mistakeHistory: [],
   recentHistory: [],
@@ -37,18 +29,12 @@ export const DEFAULT_STATS: UserStats = {
 export interface AppSettings {
   soundEnabled: boolean;
   autoAdvanceOnCorrect: boolean;
-  showKeyboardHints: boolean;
-  speedTimerEnabled: boolean;
-  showEvImpact: boolean;
   selectedMode: TrainingMode;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
   autoAdvanceOnCorrect: true,
-  showKeyboardHints: true,
-  speedTimerEnabled: true,
-  showEvImpact: true,
   selectedMode: 'all',
 };
 

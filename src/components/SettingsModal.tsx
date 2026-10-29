@@ -1,19 +1,22 @@
 'use client';
 
-import React from 'react';
-import { TableRules, TrainingMode } from '@/lib/blackjack/types';
+import React, { useRef } from 'react';
+import { TableRules, TrainingMode, UserStats } from '@/lib/blackjack/types';
 import { AppSettings } from '@/lib/storage';
-import { X, Settings, RotateCcw, Volume2, VolumeX, Target, Layers } from 'lucide-react';
+import { exportProgressBackup, importProgressBackup } from '@/lib/persistence';
+import { X, Settings, RotateCcw, Volume2, VolumeX, Target, Layers, Download, Upload, ShieldCheck } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   rules: TableRules;
   settings: AppSettings;
+  stats: UserStats;
   targetGoal: number;
   onUpdateRules: (newRules: TableRules) => void;
   onUpdateSettings: (newSettings: AppSettings) => void;
   onUpdateTargetGoal: (newGoal: number) => void;
+  onRestoreBackup: (restoredStats: UserStats, restoredRules?: TableRules, restoredSettings?: AppSettings) => void;
   onResetStats: () => void;
   reviewCount: number;
 }
@@ -23,31 +26,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   rules,
   settings,
+  stats,
   targetGoal,
   onUpdateRules,
   onUpdateSettings,
   onUpdateTargetGoal,
+  onRestoreBackup,
   onResetStats,
   reviewCount,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
   const modeOptions: Array<{ id: TrainingMode; title: string; desc: string }> = [
-    { id: 'all', title: 'Todas as Mãos', desc: 'Mãos rígidas e suaves misturadas aleatoriamente.' },
+    { id: 'all', title: 'Todas as Mãos', desc: 'Mãos rígidas e suaves misturadas com didática de alta performance.' },
     { id: 'hard', title: 'Apenas Mãos Rígidas (Hard)', desc: 'Totais de 8 a 17 sem Ás suave (decisões críticas de 12 a 16).' },
     { id: 'soft', title: 'Apenas Mãos Suaves (Soft)', desc: 'Mãos com Ás (A,2 a A,9) e janelas de dobrar.' },
     { id: 'review', title: `Fila de Erros (${reviewCount} pendentes)`, desc: 'Pratique apenas mãos que você errou anteriormente.' },
   ];
 
+  const handleExport = () => {
+    exportProgressBackup(stats, rules, settings);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const result = importProgressBackup(content);
+        if (result && result.stats) {
+          onRestoreBackup(result.stats, result.rules, result.settings);
+          alert(`Backup restaurado com sucesso! ${result.stats.totalDecisions} mãos recuperadas.`);
+        } else {
+          alert('Arquivo de backup inválido.');
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg max-h-[90vh] bg-white border border-slate-200 rounded-3xl shadow-xl flex flex-col overflow-hidden text-slate-900">
+      <div className="relative w-full max-w-lg max-h-[92vh] bg-white border border-slate-200 rounded-3xl shadow-xl flex flex-col overflow-hidden text-slate-900">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-slate-700" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">Configurações</h2>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">Configurações & Memória</h2>
           </div>
           <button
             onClick={onClose}
@@ -60,6 +91,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm">
           
+          {/* AVISO DE PERSISTÊNCIA ATIVA */}
+          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-emerald-900">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block text-emerald-950">
+                Memória Permanente Ativa (Dupla Redundância)
+              </span>
+              <p className="text-emerald-800 leading-relaxed mt-0.5">
+                Seu progresso é gravado simultaneamente no <strong>LocalStorage</strong> e no <strong>IndexedDB</strong> do seu navegador. Mesmo se fechar o navegador ou limpar cookies normais, o histórico é preservado.
+              </p>
+            </div>
+          </div>
+
+          {/* BACKUP & RESTAURAÇÃO */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div>
+              <span className="font-bold text-slate-900 text-xs uppercase tracking-wider block">
+                Cópia de Segurança do seu Progresso
+              </span>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Baixe um arquivo de backup ou transfira seu progresso para outro dispositivo:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={handleExport}
+                className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-600" />
+                <span>Exportar Backup (.json)</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              >
+                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <span>Importar Backup</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+
           {/* META DE TREINO */}
           <div>
             <div className="flex items-center gap-2 mb-2 text-slate-800 font-bold">
@@ -114,9 +195,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* REGRAS DE MESA */}
+          {/* REGRAS DE MESA & SOM */}
           <div className="border-t border-slate-100 pt-4 space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm">Regras de Mesa</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Regras & Preferências</h3>
 
             <div className="flex items-center justify-between">
               <div>
@@ -169,14 +250,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="border-t border-slate-100 pt-4">
             <button
               onClick={() => {
-                if (confirm('Zerar progresso e reiniciar contador de mãos?')) {
+                if (confirm('Zerar progresso e reiniciar contador de mãos? Esta ação não pode ser desfeita a menos que você tenha exportado um backup.')) {
                   onResetStats();
                 }
               }}
               className="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-2xl font-bold flex items-center justify-center gap-2 text-xs transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Zerar Estatísticas e Começar do Zero</span>
+              <span>Zerar Estatísticas</span>
             </button>
           </div>
 

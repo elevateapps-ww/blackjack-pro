@@ -15,6 +15,7 @@ import {
   DEFAULT_RULES,
   DEFAULT_SETTINGS,
 } from '@/lib/storage';
+import { requestPersistentStorage, getFromIndexedDB } from '@/lib/persistence';
 import { generateHandSituation } from '@/lib/blackjack/handGenerator';
 import { sounds } from '@/lib/audio/soundEffects';
 import { fireMilestoneConfetti } from '@/lib/confetti';
@@ -42,17 +43,36 @@ export default function BlackjackTrainerPage() {
 
   const handStartTimeRef = useRef<number>(Date.now());
   const isProcessingAction = useRef(false);
+  const statsRef = useRef<UserStats>(DEFAULT_STATS);
 
-  // 1. Carregar preferências no mount
+  // Mantém statsRef atualizado para sincronização de fechamento de página
   useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
+
+  // 1. Carregar preferências no mount e ativar Persistência Permanente do Navegador
+  useEffect(() => {
+    // Solicita armazenamento persistente imune a limpeza de cache
+    requestPersistentStorage();
+
     const loadedStats = loadUserStats();
     const loadedRules = loadTableRules();
     const loadedSettings = loadAppSettings();
 
     setStats(loadedStats);
+    statsRef.current = loadedStats;
     setRules(loadedRules);
     setSettings(loadedSettings);
     sounds.enabled = loadedSettings.soundEnabled;
+
+    // Dupla checagem no IndexedDB assíncrono para garantir que nenhum dado se perdeu
+    getFromIndexedDB<UserStats>('stats').then((idbStats) => {
+      if (idbStats && idbStats.totalDecisions > loadedStats.totalDecisions) {
+        setStats(idbStats);
+        statsRef.current = idbStats;
+        saveUserStats(idbStats);
+      }
+    });
 
     const initialSit = generateHandSituation(
       loadedSettings.selectedMode,
@@ -63,6 +83,26 @@ export default function BlackjackTrainerPage() {
     handStartTimeRef.current = Date.now();
     setMounted(true);
     sounds.playCardDeal();
+
+    // Salva imediatamente se a janela for fechada ou o celular for bloqueado
+    const handleVisibilityOrUnload = () => {
+      if (statsRef.current) {
+        saveUserStats(statsRef.current);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleVisibilityOrUnload);
+    window.addEventListener('pagehide', handleVisibilityOrUnload);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        handleVisibilityOrUnload();
+      }
+    });
+
+    return () => {
+      window.removeEventListener('beforeunload', handleVisibilityOrUnload);
+      window.removeEventListener('pagehide', handleVisibilityOrUnload);
+    };
   }, []);
 
   // 2. Próxima mão
@@ -150,7 +190,8 @@ export default function BlackjackTrainerPage() {
         };
 
         setStats(newStats);
-        saveUserStats(newStats);
+        statsRef.current = newStats;
+        saveUserStats(newStats); // Persistência imediata (LocalStorage + IndexedDB)
 
         // Marcos comemorativos
         if (newStreak === 10 || newStreak === 25 || newStreak === 50 || newStreak === 100 || (newStreak > 0 && newStreak % 100 === 0)) {
@@ -211,7 +252,8 @@ export default function BlackjackTrainerPage() {
         };
 
         setStats(newStats);
-        saveUserStats(newStats);
+        statsRef.current = newStats;
+        saveUserStats(newStats); // Persistência imediata (LocalStorage + IndexedDB)
 
         // Abre modal de explicação
         setIsExplanationOpen(true);
@@ -283,12 +325,29 @@ export default function BlackjackTrainerPage() {
   const handleUpdateTargetGoal = (newGoal: number) => {
     const updated = { ...stats, targetGoal: newGoal };
     setStats(updated);
+    statsRef.current = updated;
     saveUserStats(updated);
+  };
+
+  const handleRestoreBackup = (restoredStats: UserStats, restoredRules?: TableRules, restoredSettings?: AppSettings) => {
+    setStats(restoredStats);
+    statsRef.current = restoredStats;
+    saveUserStats(restoredStats);
+    if (restoredRules) {
+      setRules(restoredRules);
+      saveTableRules(restoredRules);
+    }
+    if (restoredSettings) {
+      setSettings(restoredSettings);
+      saveAppSettings(restoredSettings);
+    }
+    nextHand(restoredStats.reviewQueue);
   };
 
   const handleResetStats = () => {
     const reset = resetAllStats();
     setStats(reset);
+    statsRef.current = reset;
     nextHand([]);
   };
 
@@ -367,7 +426,7 @@ export default function BlackjackTrainerPage() {
 
       {/* FOOTER */}
       <footer className="w-full py-4 px-4 text-center text-xs text-slate-400 border-t border-slate-100">
-        Blackjack Pro • Sem login necessário • Progresso salvo localmente
+        Blackjack Pro • Memória persistente ativa (LocalStorage + IndexedDB) • Progresso 100% preservado
       </footer>
 
       {/* MODAL DE EXPLICAÇÃO AO ERRAR (ENTER ou ESPAÇO avança) */}
@@ -390,16 +449,18 @@ export default function BlackjackTrainerPage() {
         currentIsSoft={currentSituation?.isSoft}
       />
 
-      {/* MODAL DE CONFIGURAÇÕES */}
+      {/* MODAL DE CONFIGURAÇÕES & BACKUP */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         rules={rules}
         settings={settings}
+        stats={stats}
         targetGoal={stats.targetGoal}
         onUpdateRules={handleUpdateRules}
         onUpdateSettings={handleUpdateSettings}
         onUpdateTargetGoal={handleUpdateTargetGoal}
+        onRestoreBackup={handleRestoreBackup}
         onResetStats={handleResetStats}
         reviewCount={stats.reviewQueue.length}
       />

@@ -1,8 +1,12 @@
 import { TableRules, TrainingMode, UserStats } from './blackjack/types';
-
-const STATS_KEY = 'bj_apex_pro_stats_clean_v1';
-const RULES_KEY = 'bj_apex_pro_rules_clean_v1';
-const SETTINGS_KEY = 'bj_apex_pro_settings_clean_v1';
+import {
+  loadRobustStats,
+  saveRobustStats,
+  loadRobustRules,
+  saveRobustRules,
+  loadRobustSettings,
+  saveRobustSettings,
+} from './persistence';
 
 export const DEFAULT_RULES: TableRules = {
   decks: 6,
@@ -39,64 +43,27 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function loadUserStats(): UserStats {
-  if (typeof window === 'undefined') return DEFAULT_STATS;
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return DEFAULT_STATS;
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_STATS, ...parsed };
-  } catch {
-    return DEFAULT_STATS;
-  }
+  return loadRobustStats();
 }
 
 export function saveUserStats(stats: UserStats): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STATS_KEY, JSON.stringify(stats));
-  } catch (e) {
-    console.error('Failed to save stats to localStorage', e);
-  }
+  saveRobustStats(stats);
 }
 
 export function loadTableRules(): TableRules {
-  if (typeof window === 'undefined') return DEFAULT_RULES;
-  try {
-    const raw = localStorage.getItem(RULES_KEY);
-    if (!raw) return DEFAULT_RULES;
-    return { ...DEFAULT_RULES, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_RULES;
-  }
+  return loadRobustRules();
 }
 
 export function saveTableRules(rules: TableRules): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(RULES_KEY, JSON.stringify(rules));
-  } catch (e) {
-    console.error('Failed to save rules to localStorage', e);
-  }
+  saveRobustRules(rules);
 }
 
 export function loadAppSettings(): AppSettings {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+  return loadRobustSettings();
 }
 
 export function saveAppSettings(settings: AppSettings): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch (e) {
-    console.error('Failed to save settings to localStorage', e);
-  }
+  saveRobustSettings(settings);
 }
 
 export function resetAllStats(): UserStats {

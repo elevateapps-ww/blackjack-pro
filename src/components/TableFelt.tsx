@@ -62,11 +62,24 @@ export const TableFelt: React.FC<TableFeltProps> = ({
       {/* ÁREA DO DEALER */}
       <div className="flex flex-col items-center justify-center mb-6 relative z-10">
         
-        {/* Tag Didática da Situação */}
+        {/* Ícone Didático com Hover Tooltip */}
         {didacticTag && (
-          <div className="mb-3 flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-700 text-[11px] font-bold rounded-full border border-slate-200/80">
-            <Brain className="w-3.5 h-3.5 text-slate-600" />
-            <span>{didacticTag}</span>
+          <div className="relative group mb-3 flex items-center justify-center">
+            <div
+              tabIndex={0}
+              role="button"
+              aria-label={didacticTag}
+              title={didacticTag}
+              className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 border border-slate-200 transition-colors cursor-pointer shadow-xs flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-400"
+            >
+              <Brain className="w-3.5 h-3.5" />
+            </div>
+
+            {/* Tooltip flutuante no Hover */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex group-focus-within:flex pointer-events-none z-30 whitespace-nowrap bg-slate-900 text-white text-xs font-medium px-2.5 py-1 rounded-lg shadow-md animate-fade-in flex-col items-center">
+              <span>{didacticTag}</span>
+              <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mb-1 mt-0.5" />
+            </div>
           </div>
         )}
 
